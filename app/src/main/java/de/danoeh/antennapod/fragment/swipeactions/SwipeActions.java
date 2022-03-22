@@ -44,6 +44,17 @@ public class SwipeActions extends ItemTouchHelper.SimpleCallback implements Life
     private final String tag;
     private FeedItemFilter filter = null;
 
+
+    private static class onChildDrawObject {
+        public @NonNull Canvas c;
+        public @NonNull RecyclerView recyclerView;
+        public @NonNull RecyclerView.ViewHolder viewHolder;
+        public float dx;
+        public float dy;
+        public int actionState;
+        public boolean isCurrentlyActive;
+    }
+
     Actions actions;
     boolean swipeOutEnabled = true;
     int swipedOutTo = 0;
@@ -138,10 +149,7 @@ public class SwipeActions extends ItemTouchHelper.SimpleCallback implements Life
                 .performAction(item, fragment, filter);
     }
 
-    @Override
-    public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView,
-                            @NonNull RecyclerView.ViewHolder viewHolder,
-                            float dx, float dy, int actionState, boolean isCurrentlyActive) {
+    public void onChildDraw(onChildDrawObject childDrawParameters) {
         SwipeAction right;
         SwipeAction left;
         if (actions.hasActions()) {
@@ -154,24 +162,24 @@ public class SwipeActions extends ItemTouchHelper.SimpleCallback implements Life
         //check if it will be removed
         boolean rightWillRemove = right.willRemove(filter);
         boolean leftWillRemove = left.willRemove(filter);
-        boolean wontLeave = (dx > 0 && !rightWillRemove) || (dx < 0 && !leftWillRemove);
+        boolean wontLeave = (childDrawParameters.dx > 0 && !rightWillRemove) || (childDrawParameters.dx < 0 && !leftWillRemove);
 
         //Limit swipe if it's not removed
-        int maxMovement = recyclerView.getWidth() * 2 / 5;
-        float sign = dx > 0 ? 1 : -1;
-        float limitMovement = Math.min(maxMovement, sign * dx);
+        int maxMovement = childDrawParameters.recyclerView.getWidth() * 2 / 5;
+        float sign = childDrawParameters.dx > 0 ? 1 : -1;
+        float limitMovement = Math.min(maxMovement, sign * childDrawParameters.dx);
         float displacementPercentage = limitMovement / maxMovement;
 
-        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && wontLeave) {
+        if (childDrawParameters.actionState == ItemTouchHelper.ACTION_STATE_SWIPE && wontLeave) {
             swipeOutEnabled = false;
 
             boolean swipeThresholdReached = displacementPercentage == 1;
 
             // Move slower when getting near the maxMovement
-            dx = sign * maxMovement * (float) Math.sin((Math.PI / 2) * displacementPercentage);
+            childDrawParameters.dx = sign * maxMovement * (float) Math.sin((Math.PI / 2) * displacementPercentage);
 
-            if (isCurrentlyActive) {
-                int dir = dx > 0 ? ItemTouchHelper.RIGHT : ItemTouchHelper.LEFT;
+            if (childDrawParameters.isCurrentlyActive) {
+                int dir = childDrawParameters.dx > 0 ? ItemTouchHelper.RIGHT : ItemTouchHelper.LEFT;
                 swipedOutTo = swipeThresholdReached ? dir : 0;
             }
         } else {
@@ -182,9 +190,9 @@ public class SwipeActions extends ItemTouchHelper.SimpleCallback implements Life
         Context context = fragment.requireContext();
         int themeColor = ThemeUtils.getColorFromAttr(context, android.R.attr.windowBackground);
         int actionColor = ThemeUtils.getColorFromAttr(context,
-                dx > 0 ? right.getActionColor() : left.getActionColor());
+                childDrawParameters.dx > 0 ? right.getActionColor() : left.getActionColor());
         RecyclerViewSwipeDecorator.Builder builder = new RecyclerViewSwipeDecorator.Builder(
-                c, recyclerView, viewHolder, dx, dy, actionState, isCurrentlyActive)
+                childDrawParameters.c, childDrawParameters.recyclerView, childDrawParameters.viewHolder, childDrawParameters.dx, childDrawParameters.dy, childDrawParameters.actionState, childDrawParameters.isCurrentlyActive)
                 .addSwipeRightActionIcon(right.getActionIcon())
                 .addSwipeLeftActionIcon(left.getActionIcon())
                 .addSwipeRightBackgroundColor(ThemeUtils.getColorFromAttr(context, R.attr.background_elevated))
@@ -196,7 +204,7 @@ public class SwipeActions extends ItemTouchHelper.SimpleCallback implements Life
         builder.create().decorate();
 
 
-        super.onChildDraw(c, recyclerView, viewHolder, dx, dy, actionState, isCurrentlyActive);
+        super.onChildDraw(childDrawParameters.c, childDrawParameters.recyclerView, childDrawParameters.viewHolder, childDrawParameters.dx, childDrawParameters.dy, childDrawParameters.actionState, childDrawParameters.isCurrentlyActive);
     }
 
     @Override
@@ -255,4 +263,6 @@ public class SwipeActions extends ItemTouchHelper.SimpleCallback implements Life
             return right != null && left != null;
         }
     }
+
+
 }
